@@ -30,6 +30,7 @@ import org.gradle.internal.hash.Hasher;
 import org.gradle.internal.hash.Hashing;
 import org.gradle.internal.snapshot.FileSystemLocationSnapshot;
 import org.gradle.util.GFileUtils;
+import org.gradle.cache.PersistentCache;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
@@ -58,27 +59,29 @@ class InstrumentingClasspathFileTransformer implements ClasspathFileTransformer 
     }
 
     @Override
-    public File transform(File source, FileSystemLocationSnapshot sourceSnapshot, File cacheDir) {
+    public File transform(File source, FileSystemLocationSnapshot sourceSnapshot, PersistentCache cache) {
         String name = sourceSnapshot.getType() == FileType.Directory ? source.getName() + ".jar" : source.getName();
         HashCode fileHash = hashOf(sourceSnapshot);
         String destFileName = fileHash.toString() + '/' + name;
-        File transformed = new File(cacheDir, destFileName);
-        if (!transformed.isFile()) {
-            try {
-                transform(source, transformed);
-            } catch (GradleException e) {
-                if (e.getCause() instanceof FileAlreadyExistsException) {
-                    // Mostly harmless race-condition, a concurrent writer has already started writing to the file.
-                    // We run identical transforms concurrently and we can sometimes finish two transforms at the same
-                    // time in a way that Files.move (see [ClasspathBuilder.jar]) will see [transformed] created before
-                    // the move is done.
-                    LOGGER.debug("Instrumented classpath file '{}' already exists.", destFileName, e);
-                } else {
-                    throw e;
+        File transformed = new File(cache.getBaseDir(), destFileName);
+        return cache.useCache(() -> {
+            if (!transformed.isFile()) {
+                try {
+                    transform(source, transformed);
+                } catch (GradleException e) {
+                    if (e.getCause() instanceof FileAlreadyExistsException) {
+                        // Mostly harmless race-condition, a concurrent writer has already started writing to the file.
+                        // We run identical transforms concurrently and we can sometimes finish two transforms at the same
+                        // time in a way that Files.move (see [ClasspathBuilder.jar]) will see [transformed] created before
+                        // the move is done.
+                        LOGGER.debug("Instrumented classpath file '{}' already exists.", destFileName, e);
+                    } else {
+                        throw e;
+                    }
                 }
             }
-        }
-        return transformed;
+            return transformed;
+       });
     }
 
     private HashCode hashOf(FileSystemLocationSnapshot sourceSnapshot) {

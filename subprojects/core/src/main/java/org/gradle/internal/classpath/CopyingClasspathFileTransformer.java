@@ -20,6 +20,7 @@ import org.gradle.cache.GlobalCacheLocations;
 import org.gradle.internal.file.FileType;
 import org.gradle.internal.snapshot.FileSystemLocationSnapshot;
 import org.gradle.util.GFileUtils;
+import org.gradle.cache.PersistentCache;
 
 import java.io.File;
 
@@ -31,7 +32,7 @@ public class CopyingClasspathFileTransformer implements ClasspathFileTransformer
     }
 
     @Override
-    public File transform(File source, FileSystemLocationSnapshot sourceSnapshot, File cacheDir) {
+    public File transform(File source, FileSystemLocationSnapshot sourceSnapshot, PersistentCache cache) {
         // Copy files into the cache, if it is possible that loading the file in a ClassLoader may cause locking problems if the file is deleted
 
         if (sourceSnapshot.getType() != FileType.RegularFile) {
@@ -44,7 +45,7 @@ public class CopyingClasspathFileTransformer implements ClasspathFileTransformer
         }
 
         // Copy the file into the cache
-        File cachedFile = new File(cacheDir, "o_" + sourceSnapshot.getHash().toString() + '/' + source.getName());
+        File cachedFile = new File(cache.getBaseDir(), "o_" + sourceSnapshot.getHash().toString() + '/' + source.getName());
         if (!cachedFile.isFile()) {
             // Just copy the jar
             GFileUtils.copyFile(source, cachedFile);

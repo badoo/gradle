@@ -17,9 +17,10 @@
 package org.gradle.internal.classpath;
 
 import org.gradle.internal.snapshot.FileSystemLocationSnapshot;
+import org.gradle.cache.PersistentCache;
 
 import java.io.File;
 
 interface ClasspathFileTransformer {
-    File transform(File source, FileSystemLocationSnapshot sourceSnapshot, File cacheDir);
+    File transform(File source, FileSystemLocationSnapshot sourceSnapshot, PersistentCache cache);
 }

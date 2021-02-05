@@ -108,7 +108,7 @@ public class DefaultCachedClasspathTransformer implements CachedClasspathTransfo
         if (classPath.isEmpty()) {
             return classPath;
         }
-        return cache.useCache(() -> {
+        // return cache.useCache(() -> {
             List<File> originalFiles = classPath.getAsFiles();
             List<CacheOperation> operations = new ArrayList<>(originalFiles.size());
             Set<HashCode> seen = new HashSet<>();
@@ -120,7 +120,7 @@ public class DefaultCachedClasspathTransformer implements CachedClasspathTransfo
                 operation.collect(cachedFiles::add);
             }
             return DefaultClassPath.of(cachedFiles);
-        });
+        // });
     }
 
     private Transform transformerFor(StandardTransform transform) {
@@ -165,7 +165,7 @@ public class DefaultCachedClasspathTransformer implements CachedClasspathTransfo
                 return new EmptyOperation();
             }
             // Lookup and generate cache entry asynchronously
-            TransformFile operation = new TransformFile(transformer, original, snapshot, cache.getBaseDir());
+            TransformFile operation = new TransformFile(transformer, original, snapshot, cache);
             operation.schedule(executor);
             return operation;
         }
@@ -244,13 +244,13 @@ public class DefaultCachedClasspathTransformer implements CachedClasspathTransfo
         private final ClasspathFileTransformer transformer;
         private final File original;
         private final FileSystemLocationSnapshot snapshot;
-        private final File cacheDir;
+        private final PersistentCache cache;
 
-        public TransformFile(ClasspathFileTransformer transformer, File original, FileSystemLocationSnapshot snapshot, File cacheDir) {
+        public TransformFile(ClasspathFileTransformer transformer, File original, FileSystemLocationSnapshot snapshot, PersistentCache cache) {
             this.transformer = transformer;
             this.original = original;
             this.snapshot = snapshot;
-            this.cacheDir = cacheDir;
+            this.cache = cache;
             queue = new SynchronousQueue<>();
         }
 
@@ -258,7 +258,7 @@ public class DefaultCachedClasspathTransformer implements CachedClasspathTransfo
             executor.execute(() -> {
                 try {
                     try {
-                        File result = transformer.transform(original, snapshot, cacheDir);
+                        File result = transformer.transform(original, snapshot, cache);
                         queue.put(result);
                     } catch (Throwable t) {
                         queue.put(t);
